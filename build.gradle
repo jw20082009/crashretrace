@@ -1,0 +1,30 @@
+plugins {
+    id 'org.jetbrains.intellij' version '1.12.0'
+    id 'java'
+}
+
+group 'org.wilbert'
+version '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.codehaus.groovy:groovy-all:3.0.5'
+}
+
+// See https://github.com/JetBrains/gradle-intellij-plugin/
+intellij {
+    version = '2021.2.4'
+//    localPath = '/Applications/Android Studio.app/Contents'
+    plugins = ['java','android']
+}
+patchPluginXml {
+    changeNotes = """
+      when native crashed!!! <br>
+      <em>In Android Studio, code in cpp crashed </em> <em>if you want retrace just select or copy crash stacktrace</em> <em>and right click your mouse select the CrashRetrace</em>"""
+}
+test {
+    useJUnitPlatform()
+}

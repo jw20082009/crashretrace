@@ -1,0 +1,27 @@
+<idea-plugin>
+    <id>org.wilbert.crashretrace</id>
+    <name>Crash Retrace</name>
+    <vendor email="jw20082009@qq.com" url="https://github.com/jw20082009">Wilbert</vendor>
+
+    <description><![CDATA[
+    crash retrace.<br>
+    <em>retrace cpp crash in android studio, just select crash stack trace, and right click your mouse</em>
+    ]]></description>
+
+    <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html
+         on how to target different products -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.android</depends>
+    <depends>com.intellij.modules.androidstudio</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add your extensions here -->
+    </extensions>
+
+    <actions>
+        <!-- Add your actions here -->
+        <action id="com.wilbert.CrashRetrace" class="com.wilbert.CrashRetrace" text="Crash Retrace" description="cpp crash retrace">
+            <add-to-group group-id="ConsoleView.PopupMenu" anchor="first"/>
+        </action>
+    </actions>
+</idea-plugin>
