@@ -20,8 +20,48 @@
 
     <actions>
         <!-- Add your actions here -->
-        <action id="com.wilbert.CrashRetrace" class="com.wilbert.CrashRetrace" text="Crash Retrace" description="cpp crash retrace">
-            <add-to-group group-id="ConsoleView.PopupMenu" anchor="first"/>
+        <action id="com.wilbert.CrashRetrace" class="com.wilbert.CrashRetrace" text="Crash Retrace" description="cpp crash retrace" icon="AllIcons.Actions.Colors">
+            <add-to-group group-id="CodeMenu" anchor="first"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl meta C" second-keystroke="ctrl meta R"/>
         </action>
+<!--        <action id="com.wilbert.TestB" class="com.wilbert.Test" text="BBBBBBBBBBB" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="ConsoleView.PopupMenu" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestC" class="com.wilbert.Test" text="CCCCCCCCCC" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="ConsoleEditorPopupMenu" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestD" class="com.wilbert.Test" text="DDDDDDDDDD" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="FavoritesViewPopupMenu" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestE" class="com.wilbert.Test" text="EEEEEEEEEE" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="TestTreePopupMenu" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestF" class="com.wilbert.Test" text="FFFFFFFFFF" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="PopupMenuActions" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestG" class="com.wilbert.Test" text="GGGGGGGGGG" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="EditorGutterPopupMenu" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestH" class="com.wilbert.Test" text="HHHHHHHHHH" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="LightEditModePopup" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestI" class="com.wilbert.Test" text="IIIIIIIIII" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="RunDashboardPopup" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestJ" class="com.wilbert.Test" text="JJJJJJJJJJJ" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="AnalyzeActionsPopup" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestK" class="com.wilbert.Test" text="KKKKKKKKKKK" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="DomElementsTreeView.TreePopup" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestL" class="com.wilbert.Test" text="LLLLLLLLLLL" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="Runner.View.Popup" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestM" class="com.wilbert.Test" text="MMMMMMMMMM" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="EditorPopupMenuAnalyze" anchor="first"/>-->
+<!--        </action>-->
+<!--        <action id="com.wilbert.TestN" class="com.wilbert.Test" text="NNNNNNNNNN" description="cpp crash retrace">-->
+<!--            <add-to-group group-id="CopyFileReference" anchor="first"/>-->
+<!--        </action>-->
     </actions>
 </idea-plugin>

@@ -76,18 +76,6 @@ public class Addr2lineDialog extends DialogWrapper {
     }
 
     @Override
-    protected @NotNull JPanel createButtonsPanel(@NotNull List<? extends JButton> buttons) {
-        Iterator<? extends JButton> it = buttons.iterator();
-        while (it.hasNext()) {
-            JButton button = it.next();
-            if (button.getText().equals("Cancel")) {
-                it.remove();
-            }
-        }
-        return super.createButtonsPanel(buttons);
-    }
-
-    @Override
     protected @Nullable JComponent createCenterPanel() {
         JFrame jf = new JFrame();
         jf.setLocationRelativeTo(null);             // 把窗口位置设置到屏幕中心
@@ -146,7 +134,7 @@ public class Addr2lineDialog extends DialogWrapper {
         String addr2Line = null;
         Box addr2lineBox = mBoxMap.get("addr2line");
         if (addr2lineBox != null) {
-            JLabel label = (JLabel) addr2lineBox.getComponent(0);
+            JTextField label = (JTextField) addr2lineBox.getComponent(0);
             addr2Line = label.getText().trim();
         }
         StringBuffer sb = new StringBuffer();
@@ -162,7 +150,7 @@ public class Addr2lineDialog extends DialogWrapper {
                 return;
             }
             Box box = entry.getValue();
-            JLabel label = (JLabel) box.getComponent(0);
+            JTextField label = (JTextField) box.getComponent(0);
             String soPath = label.getText().trim();
             sb.append(execAddr2Line(addr2Line, soPath, stackTraces));
         }
@@ -174,7 +162,8 @@ public class Addr2lineDialog extends DialogWrapper {
             return null;
         }
         Box box = Box.createHorizontalBox();
-        JLabel label = new JLabel(pathList.get(0));
+        JTextField label = new JTextField(pathList.get(0));
+        label.setEditable(false);
         box.add(label);
         box.add(Box.createHorizontalGlue());
         int pathSize = pathList.size();

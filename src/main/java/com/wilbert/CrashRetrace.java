@@ -24,6 +24,7 @@ public class CrashRetrace extends AnAction {
         // TODO: insert action logic here
         Project project = e.getData(PlatformDataKeys.PROJECT);
         Editor editor = e.getData(PlatformDataKeys.EDITOR);
+        System.out.println("CrashRetrace actionPerformed");
         if (EPlatform.Windows.isCurrentPlatform) {
             System.out.println("currentPlatForm is " + EPlatform.Windows);
         }
@@ -65,6 +66,7 @@ public class CrashRetrace extends AnAction {
                     List<StackTrace> traces = new ArrayList<>();
                     List<File> sortedFiles = new ArrayList<>();
                     sortInsert(stackTrace.mCPUType, Utils.searchFile(stackTrace.mTargetLib, new File(basePath)), sortedFiles);
+                    traces.add(stackTrace);
                     traceList = new Pair<>(traces, sortedFiles);
                     mStackMap.put(stackTrace.mTargetLib, traceList);
                 } else
