@@ -1,34 +1,51 @@
 package com.wilbert;
 
-import com.github.javaparser.utils.Pair;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.VerticalFlowLayout;
 import com.intellij.openapi.vfs.VirtualFile;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.*;
 import java.util.*;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Addr2lineDialog extends DialogWrapper {
 
     Project mProject;
-    HashMap<String, Pair<List<StackTrace>, List<File>>> mStackMap;
-    HashMap<String, Box> mBoxMap;
+    HashMap<String, List<StackTrace>> mStackMap;
+    HashMap<String, List<String>> mLibPathMap = new HashMap<>();
+    HashMap<String, Box> mBoxMap = new HashMap<>();
     JTextArea mRetraceArea;
+    List<DepthPath> mBasePathList = new ArrayList<>();
 
-    protected Addr2lineDialog(@Nullable Project project, HashMap<String, Pair<List<StackTrace>, List<File>>> stackTraces) {
+    class DepthPath{
+        int depth = 0;
+        String path = "";
+        String keywords = "";
+
+        public DepthPath(int depth, String path, String keywords) {
+            this.depth = depth;
+            this.path = path;
+            this.keywords = keywords;
+        }
+    }
+
+    protected Addr2lineDialog(@Nullable Project project, HashMap<String, List<StackTrace>> stackTraces) {
         super(project, true);
         mProject = project;
         mStackMap = stackTraces;
+        DepthPath buildPath = new DepthPath(4, project.getBasePath(), "intermediates");
+        DepthPath crashPath = new DepthPath(2, project.getBasePath(), "crashRetrace");
+        mBasePathList.add(buildPath);
+        mBasePathList.add(crashPath);
+        System.out.println("Addr2lineDialog construct");
         init();
     }
 
@@ -82,31 +99,25 @@ public class Addr2lineDialog extends DialogWrapper {
         jf.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE); // 当点击窗口的关闭按钮时退出程序（没有这一句，程序不会退出）
         JPanel panel = new JPanel();
         panel.setLayout(new VerticalFlowLayout());
-        Iterator<Map.Entry<String, Pair<List<StackTrace>, List<File>>>> it = mStackMap.entrySet().iterator();
         String addr2Line = null;
+        mLibPathMap.clear();
+        Iterator<Map.Entry<String, List<StackTrace>>> it = mStackMap.entrySet().iterator();
         while(it.hasNext()) {
-            Map.Entry<String, Pair<List<StackTrace>, List<File>>> entry = it.next();
-            List<File> soFiles = entry.getValue().b;
-            List<StackTrace> stackTraces = entry.getValue().a;
+            Map.Entry<String, List<StackTrace>> entry = it.next();
+            List<StackTrace> stackTraces = entry.getValue();
+            String libName = entry.getKey();
             if (stackTraces.size() <= 0) {
                 continue;
             }
             if (addr2Line == null) {
+                String key = "addr2line";
                 addr2Line = getAddr2Line(mProject, stackTraces.get(0).mCPUType);
-                Box box = getFileBox(Arrays.asList(addr2Line));
-                panel.add(box);
-                putBox("addr2line", box);
+                mLibPathMap.put(key, Arrays.asList(addr2Line));
+                refreshFileBox(key);
+                panel.add(mBoxMap.get(key));
             }
-            String soPath = "";
-            if (soFiles != null && soFiles.size() > 0) {
-                List<String> pathList = new ArrayList<>();
-                for(File f: soFiles) {
-                    pathList.add(f.getAbsolutePath());
-                }
-                Box box = getFileBox(pathList);
-                panel.add(box);
-                putBox(entry.getKey(), box);
-            }
+            refreshFileBox(libName);
+            panel.add(mBoxMap.get(libName));
         }
         mRetraceArea = new JTextArea();
         mRetraceArea.setColumns(50);
@@ -114,29 +125,42 @@ public class Addr2lineDialog extends DialogWrapper {
         mRetraceArea.setRows(10);
         panel.add(mRetraceArea);
         refreshStackTrace();
+        new Thread(() -> {
+            if (mStackMap != null) {
+                Iterator<Map.Entry<String, List<StackTrace>>> it1 = mStackMap.entrySet().iterator();
+                while(it1.hasNext()) {
+                    Map.Entry<String, List<StackTrace>> entry = it1.next();
+                    String key = entry.getKey();
+                    refreshLibPath(key);
+                    SwingUtilities.invokeLater(() -> {
+                        String tempLib = key;
+                        refreshFileBox(tempLib);
+                        refreshStackTrace();
+                    });
+                }
+            }
+        }).start();
         return panel;
     }
 
-    private void putBox(String key, Box box) {
-        if (key == null || key.isEmpty() || box == null) {
-            return;
-        }
-        if (mBoxMap == null) {
-            mBoxMap = new HashMap<>();
-        }
-        mBoxMap.put(key, box);
-    }
-
     protected void refreshStackTrace() {
+        System.out.println("refreshStackTrace");
         if (mBoxMap == null || mBoxMap.size() <= 1) {
+            if (mRetraceArea != null) {
+                mRetraceArea.setText("mBoxMap == null || mBoxMap.size() <= 1");
+            }
             return;
         }
+
+        //获取addr2line地址
         String addr2Line = null;
         Box addr2lineBox = mBoxMap.get("addr2line");
         if (addr2lineBox != null) {
             JTextField label = (JTextField) addr2lineBox.getComponent(0);
             addr2Line = label.getText().trim();
         }
+
+        //根据stacktrace，使用addr2line和libpath解析堆栈，如果没有libpath则直接显示原堆栈
         StringBuffer sb = new StringBuffer();
         Iterator<Map.Entry<String, Box>> it = mBoxMap.entrySet().iterator();
         while(it.hasNext()) {
@@ -145,65 +169,218 @@ public class Addr2lineDialog extends DialogWrapper {
             if (key.equals("addr2line")) {
                 continue;
             }
-            List<StackTrace> stackTraces = mStackMap.get(key).a;
+            List<StackTrace> stackTraces = mStackMap.get(key);
             if (stackTraces == null) {
                 return;
             }
             Box box = entry.getValue();
             JTextField label = (JTextField) box.getComponent(0);
             String soPath = label.getText().trim();
-            sb.append(execAddr2Line(addr2Line, soPath, stackTraces));
+            if (new File(soPath).isFile()) {
+                sb.append(execAddr2Line(addr2Line, soPath, stackTraces));
+            } else {
+                for (StackTrace stackTrace: stackTraces) {
+                    sb.append(stackTrace.mStack).append(" ").append(stackTrace.mTargetLib).append("\n");
+                }
+            }
         }
         mRetraceArea.setText(sb.toString());
     }
 
-    protected Box getFileBox(List<String> pathList) {
-        if (pathList == null || pathList.size() <= 0) {
-            return null;
+    protected void refreshFileBox(String lib) {
+        System.out.println("refreshFileBox0:"+lib);
+        if (lib == null || lib.length() <= 0) {
+            System.out.println("refreshFileBox lib empty");
+            if (mRetraceArea != null) {
+                mRetraceArea.setText("refreshFileBox lib empty");
+            }
+            return;
         }
-        Box box = Box.createHorizontalBox();
-        JTextField label = new JTextField(pathList.get(0));
-        label.setEditable(false);
-        box.add(label);
-        box.add(Box.createHorizontalGlue());
-        int pathSize = pathList.size();
-        if (pathSize > 1) {
-            JButton nextBtn = new JButton(pathSize +"(" +1 +")");
+        System.out.println("refreshFileBox1:"+lib);
+        int totalSize = 0;
+        int currentIndex = -1;
+        String pathValue = lib;
+        List<String> pathList = mLibPathMap.get(lib);
+        if (pathList != null && pathList.size() > 0) {
+            totalSize = pathList.size();
+            pathValue = pathList.get(0);
+        }
+        System.out.println("refreshFileBox2:"+lib);
+        Box box = mBoxMap.get(lib);
+        if (box == null) {
+            System.out.println("refreshFileBox3:"+lib);
+            box = Box.createHorizontalBox();
+            JTextField label = new JTextField(pathValue);
+            label.setEditable(false);
+            box.add(label);
+            box.add(Box.createHorizontalGlue());
+            JButton nextBtn = new JButton((currentIndex + 1) +"/" +totalSize);
             nextBtn.setPreferredSize(new Dimension(40, 30));
-            nextBtn.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    String currentLabel = label.getText();
-                    int currentIndex = 0;
-                    for(int i = 0;i < pathSize; i ++) {
-                        String filePath = pathList.get(i);
-                        if (filePath.equals(currentLabel)) {
-                            currentIndex = i;
-                            break;
-                        }
-                    }
-                    int index = (currentIndex + 1)%pathSize;
-                    nextBtn.setText(pathList.size() +"(" + (index + 1) +")");
-                    label.setText(pathList.get(index));
-                    refreshStackTrace();
-                }
+            nextBtn.addActionListener(e -> {
+                refreshFileBox(lib);
+                refreshStackTrace();
             });
             box.add(nextBtn);
+            JButton button = new JButton(lib.equals("addr2line")? "...": "reTrace");
+            button.setPreferredSize(new Dimension(80, 30));
+            button.addActionListener(e -> {
+                String text = button.getText();
+                if (text.equals("...")) {
+                    FileChooserDescriptor descriptor = new FileChooserDescriptor(true, false, false, true, false, true);
+                    VirtualFile virtualFile = FileChooser.chooseFile(descriptor, mProject, null);
+                    if (virtualFile != null) {
+                        String path = virtualFile.getCanonicalPath();
+                        label.setText(path);
+                        refreshStackTrace();
+                    }
+                } else {
+                    label.setText(lib);
+                    new Thread(() -> {
+                        String tempLib = lib;
+                        mFileIndex = 0;
+                        refreshLibPath(tempLib);
+                        SwingUtilities.invokeLater(() -> {
+                            refreshFileBox(tempLib);
+                            refreshStackTrace();
+                        });
+                    }).start();
+                }
+            });
+            box.add(button);
+            mBoxMap.put(lib, box);
+        } else {
+            if (totalSize <= 0 || pathList == null) {
+                return;
+            }
+            JTextField pathLabel = (JTextField) box.getComponent(0);
+            JButton nextBtn = (JButton) box.getComponent(2);
+            pathValue = pathLabel.getText();
+            for (int i = 0; i< totalSize; i++) {
+                String filePath = pathList.get(i);
+                if (filePath.equals(pathValue)) {
+                    currentIndex = i;
+                    break;
+                }
+            }
+            int index = (currentIndex + 1) % totalSize;
+            nextBtn.setText((index + 1) + "/" + totalSize);
+            String text = pathList.get(index);
+            pathLabel.setText(text);
         }
-        JButton button = new JButton("...");
-        button.setPreferredSize(new Dimension(40, 30));
-        button.addActionListener(new ActionListener() {
+    }
+
+    private void refreshLibPath(String libName) {
+        System.out.println("refreshLibPath:"+libName);
+        if (mStackMap == null || mStackMap.get(libName) == null) {
+            System.out.println("refreshLibPath:" + libName +" failed for without stackTrace");
+            if (mRetraceArea != null) {
+                mRetraceArea.setText("refreshLibPath:" + libName +" failed for without stackTrace");
+            }
+            return;
+        }
+
+        System.out.println("refreshLibPath:" + libName);
+        StackTrace.CPU cpu = mStackMap.get(libName).get(0).mCPUType;
+        List<String> list = mLibPathMap.get(libName);
+        if (list == null) {
+            list = new ArrayList<>();
+        }
+        list.clear();
+        for (DepthPath path : mBasePathList) {
+            List<String> sortedFile = new ArrayList<>();
+            File file = new File(path.path);
+            if (file.exists() && file.isDirectory()) {
+                sortInsert(cpu, Utils.searchFile(libName, file, 0, path.keywords, path.depth, mListener), sortedFile);
+                list.addAll(sortedFile);
+            }
+        }
+        mLibPathMap.put(libName, list);
+    }
+
+    long mFileIndex = 0;
+    StringBuffer stringBuffer = null;
+    Object mLock = new Object();
+    Utils.SearchListener mListener = fileName -> {
+        mFileIndex++;
+        synchronized (mLock) {
+            stringBuffer = new StringBuffer("searching:").append(mFileIndex).append("\n");
+            stringBuffer.append(fileName).append("\n");
+        }
+        SwingUtilities.invokeLater(new Runnable() {
             @Override
-            public void actionPerformed(ActionEvent e) {
-                FileChooserDescriptor descriptor = new FileChooserDescriptor(true, false, false, true, false, true);
-                VirtualFile virtualFile = FileChooser.chooseFile(descriptor, mProject, null);
-                String path = virtualFile.getCanonicalPath();
-                label.setText(path);
-                refreshStackTrace();
+            public void run() {
+                synchronized (mLock) {
+                    if (mRetraceArea != null  && stringBuffer != null) {
+                        mRetraceArea.setText(stringBuffer.toString());
+                    }
+                }
             }
         });
-        box.add(button);
-        return box;
+    };
+
+    /**
+     * 按照
+     * @param cpu
+     * @param files
+     * @param sortedFiles
+     */
+    public void sortInsert(StackTrace.CPU cpu, List<String> files, List<String> sortedFiles) {
+        if (files == null || files.size() <= 0) {
+            return;
+        }
+        sortedFiles.clear();
+        for (String f : files) {
+            insertBy(cpu, f, sortedFiles);
+        }
+    }
+
+    private void insertBy(StackTrace.CPU cpu, String f, List<String> sortedList) {
+        int size = sortedList.size();
+        if (size <= 0) {
+            sortedList.add(f);
+            return;
+        }
+        String key = "/" + (cpu == StackTrace.CPU.CPU_64 ?"arm64-v8a": "armeabi-v7a");
+        size = sortedList.size();
+        for ( int i = 0; i< size; i++) {
+            String path = sortedList.get(i);
+            File pathFile = new File(path);
+            File file = new File(f);
+            if (getLastArmFlag(f).equals(key)) {//如果被插入的路径arm标记是堆栈所要求的
+                if (!getLastArmFlag(path).equals(key)) { //且当前路径不是堆栈所要求的，则把被插入路径插入到当前路径前面
+                    sortedList.add(i, f);
+                    break;
+                } else if (i == size - 1){
+                    sortedList.add(f);
+                    break;
+                } else if (pathFile.lastModified() - 1000 * 60 <= file.lastModified() && pathFile.length() < file.length()){ //如果被插入路径大小大于当前路径 或者被插入路径修改时间大于当前路径，则把被插入路径插入到当前路径前面
+                    sortedList.add(i, f);
+                    break;
+                } else if (pathFile.lastModified() - 1000 * 60 > file.lastModified() && pathFile.lastModified() < file.lastModified()){
+                    sortedList.add(i, f);
+                    break;
+                } else {
+                    continue;
+                }
+            } else {
+                sortedList.add(f);
+                break;
+            }
+        }
+    }
+
+    /**
+     * 匹配最后一个/armxxxx/xxxx.so，从而得到
+     * @param path
+     * @return
+     */
+    private String getLastArmFlag(String path) {
+        Pattern p = Pattern.compile("\\S*(\\/arm\\S+)(?!.*\\1)(\\/\\S+\\.so)");
+        Matcher m = p.matcher(path);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return "";
     }
 
     protected String execAddr2Line(String addr2Line, String targetSo, List<StackTrace> stackTraces) {

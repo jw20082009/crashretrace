@@ -37,7 +37,7 @@ public class StackTrace {
         if (line == null || line.isEmpty()) {
             return -1;
         }
-        Pattern p = Pattern.compile("#\\d+\\spc\\s(\\S+)\\s+\\S+(\\/)(?!.*\\1)(\\S+\\.so)\\s");
+        Pattern p = Pattern.compile("#\\d+\\spc\\s(\\S+)\\s+\\S+(\\/)(?!.*\\1)(\\S+\\.so)\\s*");
         Matcher m = p.matcher(line);
         int result = -1;
         if (m.find()) {
