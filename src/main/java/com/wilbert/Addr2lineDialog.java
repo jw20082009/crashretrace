@@ -23,6 +23,7 @@ public class Addr2lineDialog extends DialogWrapper {
     HashMap<String, List<String>> mLibPathMap = new HashMap<>();
     HashMap<String, Box> mBoxMap = new HashMap<>();
     JTextArea mRetraceArea;
+    JLabel mCostLabel;
     List<DepthPath> mBasePathList = new ArrayList<>();
 
     class DepthPath{
@@ -99,6 +100,8 @@ public class Addr2lineDialog extends DialogWrapper {
         jf.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE); // 当点击窗口的关闭按钮时退出程序（没有这一句，程序不会退出）
         JPanel panel = new JPanel();
         panel.setLayout(new VerticalFlowLayout());
+        mCostLabel = new JLabel("cost:");
+        panel.add(mCostLabel);
         String addr2Line = null;
         mLibPathMap.clear();
         Iterator<Map.Entry<String, List<StackTrace>>> it = mStackMap.entrySet().iterator();
@@ -128,6 +131,7 @@ public class Addr2lineDialog extends DialogWrapper {
         new Thread(() -> {
             if (mStackMap != null) {
                 Iterator<Map.Entry<String, List<StackTrace>>> it1 = mStackMap.entrySet().iterator();
+                long start = System.currentTimeMillis();
                 while(it1.hasNext()) {
                     Map.Entry<String, List<StackTrace>> entry = it1.next();
                     String key = entry.getKey();
@@ -138,6 +142,10 @@ public class Addr2lineDialog extends DialogWrapper {
                         refreshStackTrace();
                     });
                 }
+                SwingUtilities.invokeLater(() -> {
+                    long cost = System.currentTimeMillis() - start;
+                    mCostLabel.setText("cost:" + cost + "ms");
+                });
             }
         }).start();
         return panel;
@@ -238,10 +246,13 @@ public class Addr2lineDialog extends DialogWrapper {
                     new Thread(() -> {
                         String tempLib = lib;
                         mFileIndex = 0;
+                        long start = System.currentTimeMillis();
                         refreshLibPath(tempLib);
                         SwingUtilities.invokeLater(() -> {
                             refreshFileBox(tempLib);
                             refreshStackTrace();
+                            long cost = System.currentTimeMillis() - start;
+                            mCostLabel.setText("cost:" + cost + "ms");
                         });
                     }).start();
                 }
@@ -291,7 +302,7 @@ public class Addr2lineDialog extends DialogWrapper {
             File file = new File(path.path);
             if (file.exists() && file.isDirectory()) {
                 sortInsert(cpu, Utils.searchFile(libName, file, 0, path.keywords, path.depth, mListener), sortedFile);
-                list.addAll(sortedFile);
+                sortInsert(cpu, sortedFile, list);
             }
         }
         mLibPathMap.put(libName, list);
@@ -328,7 +339,6 @@ public class Addr2lineDialog extends DialogWrapper {
         if (files == null || files.size() <= 0) {
             return;
         }
-        sortedFiles.clear();
         for (String f : files) {
             insertBy(cpu, f, sortedFiles);
         }
@@ -341,12 +351,26 @@ public class Addr2lineDialog extends DialogWrapper {
             return;
         }
         String key = "/" + (cpu == StackTrace.CPU.CPU_64 ?"arm64-v8a": "armeabi-v7a");
+        String toBeInsertArmFlag = getLastArmFlag(f);
+        if (toBeInsertArmFlag.trim().isEmpty()) {
+            boolean exist = false;
+            for ( int i = 0; i< size; i++) {
+                if (sortedList.get(i).equals(f)) {
+                    exist = true;
+                    break;
+                }
+            }
+            if (!exist) {
+                sortedList.add(f);
+            }
+            return;
+        }
         size = sortedList.size();
         for ( int i = 0; i< size; i++) {
             String path = sortedList.get(i);
             File pathFile = new File(path);
             File file = new File(f);
-            if (getLastArmFlag(f).equals(key)) {//如果被插入的路径arm标记是堆栈所要求的
+            if (toBeInsertArmFlag.equals(key)) {//如果被插入的路径arm标记是堆栈所要求的
                 if (!getLastArmFlag(path).equals(key)) { //且当前路径不是堆栈所要求的，则把被插入路径插入到当前路径前面
                     sortedList.add(i, f);
                     break;
