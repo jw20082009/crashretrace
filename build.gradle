@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'org.wilbert'
-version '1.0.5'
+version '1.0.202311'
 
 repositories {
     mavenCentral()
@@ -16,7 +16,7 @@ dependencies {
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
 intellij {
-    version = '2022.1.4'
+    version = '2023.1.1'
 //    localPath = '/Applications/Android Studio.app/Contents'
     plugins = ['java','android']
 }
