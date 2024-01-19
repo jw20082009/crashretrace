@@ -1,6 +1,5 @@
 package com.wilbert;
 
-import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.PlatformDataKeys;
@@ -43,9 +42,6 @@ public class CrashRetrace extends AnAction {
         }
 
         if (text == null || text.isEmpty()) {
-            if (editor != null) {
-                HintManager.getInstance().showErrorHint(editor, "CrashRetrace actionPerformed "+(text == null? "text null":"text empty"));
-            }
             System.out.println("CrashRetrace actionPerformed "+(text == null? "text null":"text empty"));
             return;
         }
