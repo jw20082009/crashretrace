@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'org.wilbert'
-version '1.0.202311'
+version '1.0.202422'
 
 repositories {
     mavenCentral()
@@ -16,9 +16,9 @@ dependencies {
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
 intellij {
-    version = '2023.1.1'
+    version = '2024.2.2'
 //    localPath = '/Applications/Android Studio.app/Contents'
-    plugins = ['java','android']
+    plugins = ['java']
 }
 patchPluginXml {
     changeNotes = """
